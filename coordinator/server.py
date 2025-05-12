@@ -5,37 +5,38 @@ import httpx
 app = FastAPI()
 
 REPLICAS = [
-    "http://127.0.0.1:8001/",
-    "http://127.0.0.1:8002/",
+    "http://127.0.0.1:8001",
+    "http://127.0.0.1:8002",
 ]
 
 @app.get("/download")
 async def download(arquivo: str):
-    async def try_stream(replica: str):
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Try GET directly since HEAD may not be allowed
-                async with client.stream("GET", f"{replica}/files/{arquivo}") as response:
-                    if response.status_code == 200:
+    async def stream_all_replicas():
+        for replica in REPLICAS:
+            try:
+                print(f"Tentando {replica}...")
+                async with httpx.AsyncClient(timeout=None) as client:
+                    async with client.stream("GET", f"{replica}/files/{arquivo}") as response:
+                        if response.status_code != 200:
+                            print(f"Réplica {replica} retornou status {response.status_code}")
+                            continue
+                        # Transmite todos os chunks desta réplica
                         async for chunk in response.aiter_bytes():
                             yield chunk
-                        
-        except Exception as e:
-            print(f"Failed to stream from {replica}: {str(e)}")
-            
+                        print(f"Download finalizado com sucesso pela réplica {replica}")
+                        return  # finaliza após sucesso
+            except Exception as e:
+                print(f"Erro ao tentar a réplica {replica}: {e}")
+                continue
 
-    for replica in REPLICAS:
-        try:
-            return StreamingResponse(
-                try_stream(replica),
-                media_type="application/octet-stream",
-                headers={
-                    "Content-Disposition": f"attachment; filename={arquivo}",
-                    "Cache-Control": "no-store"
-                }
-            )
-        except Exception as e:
-            print(f"Error with {replica}: {str(e)}")
-            continue
+        # Se nenhuma réplica respondeu corretamente
+        raise HTTPException(status_code=503, detail="Todas as réplicas falharam")
 
-    raise HTTPException(status_code=503, detail="All replicas failed")
+    return StreamingResponse(
+        stream_all_replicas(),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename={arquivo}",
+            "Cache-Control": "no-store"
+        }
+    )
