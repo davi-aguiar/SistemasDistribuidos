@@ -4,13 +4,13 @@ from fastapi.responses import StreamingResponse
 import os
 
 app = FastAPI()
-ARQUIVO = os.path.join(os.path.dirname(__file__), "foo.txt")
+ARQUIVO = os.path.join(os.path.dirname(__file__), "teste.txt")
 TAM = os.path.getsize(ARQUIVO)
 
 @app.get("/files/{nome}")
 async def serve(nome: str, request: Request):
-    if nome != "foo.txt":
-        raise HTTPException(404, "Não encontrado")
+    # if nome != "foo.txt":
+    #     raise HTTPException(404, "Não encontrado")
     # calcula início a partir do Range
     range_hdr = request.headers.get("range")
     start = 0

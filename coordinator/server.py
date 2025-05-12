@@ -5,8 +5,8 @@ import httpx
 app = FastAPI()
 
 REPLICAS = [
-    "http://127.0.0.1:8001",
-    "http://127.0.0.1:8002",
+    "http://127.0.0.1:8001/",
+    "http://127.0.0.1:8002/",
 ]
 
 @app.get("/download")
@@ -19,10 +19,10 @@ async def download(arquivo: str):
                     if response.status_code == 200:
                         async for chunk in response.aiter_bytes():
                             yield chunk
-                        return True
+                        
         except Exception as e:
             print(f"Failed to stream from {replica}: {str(e)}")
-            return False
+            
 
     for replica in REPLICAS:
         try:
