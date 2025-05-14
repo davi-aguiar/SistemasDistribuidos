@@ -2,6 +2,7 @@
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import StreamingResponse
 import os
+import time
 
 app = FastAPI()
 
@@ -25,9 +26,15 @@ async def serve(nome: str, request: Request):
         headers["Content-Range"] = f"bytes {start}-{TAM-1}/{TAM}"
 
     def chunker():
+        bytes_sent = 0
         with open(caminho_arquivo, "rb") as f:
             f.seek(start)
             while chunk := f.read(64*1024):
+                bytes_sent += len(chunk)
+                if bytes_sent >= 10 * 1024 * 1024:  # 10 MB
+                    print("Simulando falha da réplica")
+                    raise Exception("Falha simulada na réplica")
+                time.sleep(0.1)  # pequeno atraso para permitir acompanhamento
                 yield chunk
 
     return StreamingResponse(chunker(), status_code=status,
